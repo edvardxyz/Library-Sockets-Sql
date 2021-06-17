@@ -75,7 +75,7 @@ namespace client
                             Console.WriteLine("\nEr du sikker på du vil slette din bruger?");
                             Console.WriteLine("Tryk 'y' for at bekræfte, tryk en anden tast for at fortryde");
                             if (Console.ReadKey(true).Key == ConsoleKey.Y){
-                                Command("5", stream, true);
+                                Command("5", stream, false);
                                 goto case 6;
                             }else{
                                 break;

@@ -246,8 +246,6 @@ namespace server
             return false;
         }
 
-        //string sqlquery = $"SELECT isbn, title, author, publisher, genre, published, pages FROM books WHERE {column} = {findby}"
-
         public static string GetUsers(){
             string sqlquery = "SELECT name, password, admin FROM users";
             MySqlParameter[] values = new MySqlParameter[]{new MySqlParameter("@none", 1)};
@@ -354,11 +352,7 @@ namespace server
                             MySqlParameter[] param5 = new MySqlParameter[]{
                                 new MySqlParameter("@id", id)};
                             Sql.RemoveUser(param5);
-                            login = false;
-                            running = false;
-                            stream.Close();
-                            client.Close();
-                            break;
+                            goto case '6';
                         case '6':
                             login = false;
                             running = false;
@@ -406,6 +400,9 @@ namespace server
                                 new MySqlParameter("@id", result3)};
                             success = Sql.RemoveUser(param3);
                             stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
+                            // if admin commits delete himself
+                            if(id.ToString() == result3)
+                                goto case '6';
                             break;
                         case '4':
                             returnS = Sql.GetAllBooks();
