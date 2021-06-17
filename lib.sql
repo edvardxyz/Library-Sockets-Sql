@@ -20,7 +20,7 @@ CREATE TABLE books(
     published int NOT NULL,
     pages int NOT NULL,
     fk_user_id INT,
-    FOREIGN KEY(fk_user_id) REFERENCES users(id)
+    FOREIGN KEY(fk_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 

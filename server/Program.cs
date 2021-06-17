@@ -229,89 +229,49 @@ namespace server
 
         public static string GetAllBooks(){
             string sqlquery = "SELECT isbn, title, author, publisher, genre, published, pages FROM books WHERE fk_user_id IS NULL";
-
-            try{
-                using(var con = new MySqlConnection(constring))
-                    using(var cmd = new MySqlCommand(sqlquery, con)){
-                        con.Open();
-                        using(MySqlDataReader rdr = cmd.ExecuteReader())
-                        {
-                            int columns = rdr.FieldCount;
-                            List<string>[] buffer = new List<string>[columns];
-
-                            for(int i = 0; i < columns; i++){
-                                buffer[i] = new List<string>();
-                            }
-
-                            for (int i = 0; i < rdr.FieldCount; i++){
-                                buffer[i].Add(rdr.GetName(i));
-                            }
-
-                            while (rdr.Read()){
-                                for (int i = 0; i < rdr.FieldCount; i++){
-                                    buffer[i].Add(rdr.GetString(i));
-                                }
-                            }
-                            return PrintBox(buffer, columns);
-                        }
-                    }
-            }
-            catch (Exception ex){
-                Console.WriteLine(ex.ToString());
-            }
-            return null;
+            MySqlParameter[] values = new MySqlParameter[]{new MySqlParameter("@none", 1)};
+            return ExecuteRdr(values, sqlquery);
         }
 
         public static string GetUserBorrowed(MySqlParameter[] values){
             string sqlquery = "SELECT isbn, title, author, publisher, genre, published, pages FROM books WHERE fk_user_id = @id";
-            try{
-                using(var con = new MySqlConnection(constring))
-                    using(var cmd = new MySqlCommand(sqlquery, con)){
-                        con.Open();
-                        cmd.Parameters.AddRange(values);
-                        cmd.Prepare();
-                        using(MySqlDataReader rdr = cmd.ExecuteReader())
-                        {
-                            int columns = rdr.FieldCount;
-                            List<string>[] buffer = new List<string>[columns];
-
-                            for(int i = 0; i < columns; i++){
-                                buffer[i] = new List<string>();
-                            }
-
-                            for (int i = 0; i < rdr.FieldCount; i++){
-                                buffer[i].Add(rdr.GetName(i));
-                            }
-
-                            while (rdr.Read()){
-                                for (int i = 0; i < rdr.FieldCount; i++){
-                                    buffer[i].Add(rdr.GetString(i));
-                                }
-                            }
-                            return PrintBox(buffer, columns);
-                        }
-                    }
-            }
-            catch (Exception ex){
-                Console.WriteLine(ex.ToString());
-            }
-            return null;
+            return ExecuteRdr(values, sqlquery);
         }
 
+        public static bool IsAdmin(MySqlParameter[] values){
+            string sqlquery = "SELECT id FROM users WHERE id = @id AND admin = 1";
+            if (ExecuteSc(values, sqlquery) != null){
+                return true;
+            }
+            return false;
+        }
 
-        // create this shit maybe
         //string sqlquery = $"SELECT isbn, title, author, publisher, genre, published, pages FROM books WHERE {column} = {findby}"
-        public static void GetUsers(){
 
+        public static string GetUsers(){
+            string sqlquery = "SELECT name, password, admin FROM users";
+            MySqlParameter[] values = new MySqlParameter[]{new MySqlParameter("@none", 1)};
+            return ExecuteRdr(values, sqlquery);
         }
-        public static void RemoveUser(){
 
+        public static bool RemoveUser(MySqlParameter[] values){
+            if(values.Length == 1)
+                return ExecuteSql(values, "DELETE from users WHERE id = @id");
+            else{
+                Console.WriteLine("Wrong values count");
+                return false;
+            }
         }
-        public static void RemoveBook(){
 
+        public static bool RemoveBook(MySqlParameter[] values){
+            if(values.Length == 1)
+                return ExecuteSql(values, "DELETE from books WHERE isbn = @isbn");
+            else{
+                Console.WriteLine("Wrong values count");
+                return false;
+            }
         }
     }
-
 
     public class ClientCon{
 
@@ -323,12 +283,13 @@ namespace server
             stream = clientrec.GetStream();
             Con();
         }
+
         public async void Con(){
             byte[] buffer;
             int id = 0;
-
             int readbytes;
             bool login = false;
+            bool admin = false;
             while(!login){
                 buffer = new byte[5000];
                 readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
@@ -341,16 +302,21 @@ namespace server
                 MySqlParameter[] paramPass = new MySqlParameter[] {new MySqlParameter("@id", id), new MySqlParameter("@password", pass)};
                 if(Sql.UserExists(paramId)){
                     if(Sql.CheckPass(paramPass)){
-                        stream.Write(Encoding.UTF8.GetBytes("true"));
-                        login = true;
-
+                        if(Sql.IsAdmin(paramId)){
+                            stream.Write(Encoding.UTF8.GetBytes("admin"));
+                            login = true;
+                            admin = true;
+                        }else{
+                            stream.Write(Encoding.UTF8.GetBytes("user"));
+                            login = true;
+                        }
                     }else{
                         Console.WriteLine("false send to client");
                         stream.Write(Encoding.UTF8.GetBytes("false"));
                     }
                 }
             }
-            if(login){
+            if(login && !admin){
                 bool running = true;
                 bool success;
                 do{
@@ -389,9 +355,71 @@ namespace server
                                 new MySqlParameter("@id", id)};
                             Sql.RemoveUser(param5);
                             login = false;
+                            running = false;
+                            stream.Close();
+                            client.Close();
                             break;
                         case '6':
                             login = false;
+                            running = false;
+                            stream.Close();
+                            client.Close();
+                            break;
+                        default:
+                            break;
+                    }
+                }while(running);
+            }else if(login && admin){
+                bool running = true;
+                bool success;
+                do{
+                string returnS = "";
+                buffer = new byte[5000];
+                readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                string cmd = Encoding.UTF8.GetString(buffer,0,readbytes);
+                    switch(cmd[0])
+                    {
+                        case '1':
+                            string[] result = new string[7];
+                            string[] values = new string[7]{"@isbn","@title","@author","@publisher","@genre","@published","@pages"};
+                            MySqlParameter[] param = new MySqlParameter[7];
+                            for(int i = 0; i < 7; i++){
+                                readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                                result[i] = Encoding.UTF8.GetString(buffer,0,readbytes);
+                                param[i] = new MySqlParameter(values[i],result[i]);
+                            }
+                            success = Sql.AddBook(param);
+                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
+                            break;
+                        case '2':
+                            readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                            string result2 = Encoding.UTF8.GetString(buffer,0,readbytes);
+                            MySqlParameter[] param2 = new MySqlParameter[]{
+                                new MySqlParameter("@id", result2)};
+                            success = Sql.RemoveUser(param2);
+                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
+                            break;
+                        case '3':
+                            readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                            string result3 = Encoding.UTF8.GetString(buffer,0,readbytes);
+                            MySqlParameter[] param3 = new MySqlParameter[]{
+                                new MySqlParameter("@id", result3)};
+                            success = Sql.RemoveUser(param3);
+                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
+                            break;
+                        case '4':
+                            returnS = Sql.GetAllBooks();
+                            stream.Write(Encoding.UTF8.GetBytes(returnS));
+                            break;
+                        case '5':
+                            returnS = Sql.GetUsers();
+                            stream.Write(Encoding.UTF8.GetBytes(returnS));
+                            break;
+                        case '6':
+                            stream.Close();
+                            client.Close();
+                            login = false;
+                            admin = false;
                             running = false;
                             break;
                         default:
