@@ -9,11 +9,11 @@ namespace client
     class Program
     {
         static void Main(){
-            int port = 1234; //Interface.GetInt("Server port: ", 65535);
+            int port = Interface.GetInt("Server port: ", 65535);
             TcpClient client = new TcpClient();
-            IPAddress ip = IPAddress.Parse("127.0.0.1");  //Interface.GetIp());
+            IPAddress ip = IPAddress.Parse(Interface.GetIp());
             IPEndPoint endPoint = new IPEndPoint(ip, port);
-            byte[] buffer = new byte[5000];
+            byte[] buffer = new byte[6000];
             int readbytes;
             string loginStatus;
 
@@ -42,7 +42,7 @@ namespace client
         }
 
         static void Command(string cmd, NetworkStream stream, bool printresult){
-            byte[] buffer = new byte[5000];
+            byte[] buffer = new byte[6000];
             stream.Write(Encoding.UTF8.GetBytes(cmd));
             if(printresult){
                 int readbytes = stream.Read(buffer);

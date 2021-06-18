@@ -20,7 +20,7 @@ namespace server
 
         public static void Run(){
 
-            int port = 1234; //Interface.GetInt("Listen on port: ", 65535);
+            int port = Interface.GetInt("Listen on port: ", 65535);
             IPAddress ip = IPAddress.Any;
             IPEndPoint endPoint = new IPEndPoint(ip, port);
             TcpListener listener = new TcpListener(endPoint);
@@ -37,7 +37,195 @@ namespace server
                 TcpClient client = await listener.AcceptTcpClientAsync();
                 ClientCon clientobj = new ClientCon(client);
                 clients.Add(clientobj);
+            }
+        }
+    }
 
+    public class ClientCon{
+
+        public TcpClient client;
+        public NetworkStream stream;
+
+        public ClientCon(TcpClient clientrec){
+            client = clientrec;
+            stream = clientrec.GetStream();
+            Con();
+        }
+
+        public async void Con(){
+            byte[] buffer = new byte[6000];
+            int id = 0;
+            int readbytes;
+            bool login = false;
+            bool admin = false;
+            bool running = true;
+            bool success;
+            string returnS = "";
+            MySqlParameter[] param = new MySqlParameter[7];
+
+            while(!login){
+                readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                id = Int32.Parse(Encoding.UTF8.GetString(buffer,0,readbytes));
+                MySqlParameter[] paramId = new MySqlParameter[] {new MySqlParameter("@id", id)};
+                readbytes = await stream.ReadAsync(buffer, 0, buffer.Length);
+                string pass = Encoding.UTF8.GetString(buffer,0,readbytes);
+                MySqlParameter[] paramPass = new MySqlParameter[] {new MySqlParameter("@id", id), new MySqlParameter("@password", pass)};
+                if(Sql.UserExists(paramId)){
+                    if(Sql.CheckPass(paramPass)){
+                        Console.WriteLine("\nUser: " + id +" logged in");
+                        if(Sql.IsAdmin(paramId)){
+                            stream.Write(Encoding.UTF8.GetBytes("admin"));
+                            login = true;
+                            admin = true;
+                        }else{
+                            stream.Write(Encoding.UTF8.GetBytes("user"));
+                            login = true;
+                        }
+                    }else{
+                        Console.WriteLine("false send to client");
+                        stream.Write(Encoding.UTF8.GetBytes("false"));
+                    }
+                }
+            }
+            if(login && !admin){
+                do{
+                    readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                    string cmd = Encoding.UTF8.GetString(buffer,0,readbytes);
+                    if (readbytes == 0){
+                        stream.Close();
+                        client.Close();
+                        login = false;
+                        admin = false;
+                        running = false;
+                        Console.WriteLine("\nUser: " + id +" logged out");
+                        break;
+                    }
+                    switch(cmd[0])
+                    {
+                        case '1':
+                            param = new MySqlParameter[]{
+                                new MySqlParameter("@id", id),
+                                    new MySqlParameter("@isbn", Int32.Parse(cmd.Substring(1)))};
+                            success = Sql.BorrowBook(param);
+                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
+                            if(success){
+                                Console.WriteLine("User: " + id +" lend book: " + cmd.Substring(1) + " sucessfully");
+                            }
+                            break;
+                        case '2':
+                            param = new MySqlParameter[]{
+                                new MySqlParameter("@id", id),
+                                    new MySqlParameter("@isbn", Int32.Parse(cmd.Substring(1)))};
+                            success = Sql.ReturnBook(param);
+                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
+                            if(success){
+                                Console.WriteLine("User: " + id +" returned book: " + cmd.Substring(1) + " sucessfully");
+                            }
+                            break;
+                        case '3':
+                            param = new MySqlParameter[]{
+                                new MySqlParameter("@id", id)};
+                            returnS = Sql.GetUserBorrowed(param);
+                            stream.Write(Encoding.UTF8.GetBytes(returnS));
+                            break;
+                        case '4':
+                            returnS = Sql.GetAllBooks();
+                            stream.Write(Encoding.UTF8.GetBytes(returnS));
+                            break;
+                        case '5':
+                            param = new MySqlParameter[]{
+                                new MySqlParameter("@id", id)};
+                            success = Sql.RemoveUser(param);
+                            if(success){
+                                Console.WriteLine("User: " + id +" deleted himself sucessfully :(");
+                            }
+                            goto case '6';
+                        case '6':
+                            login = false;
+                            running = false;
+                            stream.Close();
+                            client.Close();
+                            Console.WriteLine("\nUser: " + id +" logged out");
+                            break;
+                        default:
+                            break;
+                    }
+                }while(running);
+            }else if(login && admin){
+                do{
+                    string result;
+                    readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                    string cmd = Encoding.UTF8.GetString(buffer,0,readbytes);
+                    if (readbytes == 0){
+                        stream.Close();
+                        client.Close();
+                        login = false;
+                        admin = false;
+                        running = false;
+                        Console.WriteLine("\nUser: " + id +" logged out");
+                        break;
+                    }
+                    switch(cmd[0])
+                    {
+                        case '1':
+                            string[] results = new string[7];
+                            string[] values = new string[7]{"@isbn","@title","@author","@publisher","@genre","@published","@pages"};
+                            for(int i = 0; i < 7; i++){
+                                readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                                results[i] = Encoding.UTF8.GetString(buffer,0,readbytes);
+                                param[i] = new MySqlParameter(values[i],results[i]);
+                            }
+                            success = Sql.AddBook(param);
+                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
+                            if(success){
+                                Console.WriteLine("Book: " + results[1] + " added sucessfully");
+                            }
+                            break;
+                        case '2':
+                            readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                            result = Encoding.UTF8.GetString(buffer,0,readbytes);
+                            param = new MySqlParameter[]{
+                                new MySqlParameter("@isbn", result)};
+                            success = Sql.RemoveBook(param);
+                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
+                            if(success){
+                                Console.WriteLine("Book: " + result + " removed sucessfully");
+                            }
+                            break;
+                        case '3':
+                            readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
+                            result = Encoding.UTF8.GetString(buffer,0,readbytes);
+                            param = new MySqlParameter[]{
+                                new MySqlParameter("@id", result)};
+                            success = Sql.RemoveUser(param);
+                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
+                            if(success){
+                                Console.WriteLine("User: " + result + " removed sucessfully");
+                            }
+                            // if admin commits delete himself
+                            if(id.ToString() == result)
+                                goto case '6';
+                            break;
+                        case '4':
+                            returnS = Sql.GetAllBooks();
+                            stream.Write(Encoding.UTF8.GetBytes(returnS));
+                            break;
+                        case '5':
+                            returnS = Sql.GetUsers();
+                            stream.Write(Encoding.UTF8.GetBytes(returnS));
+                            break;
+                        case '6':
+                            stream.Close();
+                            client.Close();
+                            login = false;
+                            admin = false;
+                            running = false;
+                            Console.WriteLine("\nUser: " + id +" logged out");
+                            break;
+                        default:
+                            break;
+                    }
+                }while(running);
             }
         }
     }
@@ -183,7 +371,7 @@ namespace server
 
                     returnString += $"| {buffer[j][i]}{GetPadding(columnLength[j]-buffer[j][i].Length+2)} ";
 
-                    if(j == 6){
+                    if(j == columns-1){
                         returnString += "|\n";
                     }
                 }
@@ -267,162 +455,6 @@ namespace server
             else{
                 Console.WriteLine("Wrong values count");
                 return false;
-            }
-        }
-    }
-
-    public class ClientCon{
-
-        public TcpClient client;
-        public NetworkStream stream;
-
-        public ClientCon(TcpClient clientrec){
-            client = clientrec;
-            stream = clientrec.GetStream();
-            Con();
-        }
-
-        public async void Con(){
-            byte[] buffer;
-            int id = 0;
-            int readbytes;
-            bool login = false;
-            bool admin = false;
-            while(!login){
-                buffer = new byte[5000];
-                readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
-                id = Int32.Parse(Encoding.UTF8.GetString(buffer,0,readbytes));
-                MySqlParameter[] paramId = new MySqlParameter[] {new MySqlParameter("@id", id)};
-                Console.WriteLine("\n" + id);
-                buffer = new byte[5000];
-                readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
-                string pass = Encoding.UTF8.GetString(buffer,0,readbytes);
-                MySqlParameter[] paramPass = new MySqlParameter[] {new MySqlParameter("@id", id), new MySqlParameter("@password", pass)};
-                if(Sql.UserExists(paramId)){
-                    if(Sql.CheckPass(paramPass)){
-                        if(Sql.IsAdmin(paramId)){
-                            stream.Write(Encoding.UTF8.GetBytes("admin"));
-                            login = true;
-                            admin = true;
-                        }else{
-                            stream.Write(Encoding.UTF8.GetBytes("user"));
-                            login = true;
-                        }
-                    }else{
-                        Console.WriteLine("false send to client");
-                        stream.Write(Encoding.UTF8.GetBytes("false"));
-                    }
-                }
-            }
-            if(login && !admin){
-                bool running = true;
-                bool success;
-                do{
-                string returnS = "";
-                buffer = new byte[5000];
-                readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
-                string cmd = Encoding.UTF8.GetString(buffer,0,readbytes);
-                    switch(cmd[0])
-                    {
-                        case '1':
-                            MySqlParameter[] param1 = new MySqlParameter[]{
-                                new MySqlParameter("@id", id),
-                                new MySqlParameter("@isbn", Int32.Parse(cmd.Substring(1)))};
-                            success = Sql.BorrowBook(param1);
-                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
-                            break;
-                        case '2':
-                            MySqlParameter[] param2 = new MySqlParameter[]{
-                                new MySqlParameter("@id", id),
-                                new MySqlParameter("@isbn", Int32.Parse(cmd.Substring(1)))};
-                            success = Sql.ReturnBook(param2);
-                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
-                            break;
-                        case '3':
-                            MySqlParameter[] param3 = new MySqlParameter[]{
-                                new MySqlParameter("@id", id)};
-                            returnS = Sql.GetUserBorrowed(param3);
-                            stream.Write(Encoding.UTF8.GetBytes(returnS));
-                            break;
-                        case '4':
-                            returnS = Sql.GetAllBooks();
-                            stream.Write(Encoding.UTF8.GetBytes(returnS));
-                            break;
-                        case '5':
-                            MySqlParameter[] param5 = new MySqlParameter[]{
-                                new MySqlParameter("@id", id)};
-                            Sql.RemoveUser(param5);
-                            goto case '6';
-                        case '6':
-                            login = false;
-                            running = false;
-                            stream.Close();
-                            client.Close();
-                            break;
-                        default:
-                            break;
-                    }
-                }while(running);
-            }else if(login && admin){
-                bool running = true;
-                bool success;
-                do{
-                string returnS = "";
-                buffer = new byte[5000];
-                readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
-                string cmd = Encoding.UTF8.GetString(buffer,0,readbytes);
-                    switch(cmd[0])
-                    {
-                        case '1':
-                            string[] result = new string[7];
-                            string[] values = new string[7]{"@isbn","@title","@author","@publisher","@genre","@published","@pages"};
-                            MySqlParameter[] param = new MySqlParameter[7];
-                            for(int i = 0; i < 7; i++){
-                                readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
-                                result[i] = Encoding.UTF8.GetString(buffer,0,readbytes);
-                                param[i] = new MySqlParameter(values[i],result[i]);
-                            }
-                            success = Sql.AddBook(param);
-                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
-                            break;
-                        case '2':
-                            readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
-                            string result2 = Encoding.UTF8.GetString(buffer,0,readbytes);
-                            MySqlParameter[] param2 = new MySqlParameter[]{
-                                new MySqlParameter("@id", result2)};
-                            success = Sql.RemoveUser(param2);
-                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
-                            break;
-                        case '3':
-                            readbytes  = await stream.ReadAsync(buffer, 0, buffer.Length);
-                            string result3 = Encoding.UTF8.GetString(buffer,0,readbytes);
-                            MySqlParameter[] param3 = new MySqlParameter[]{
-                                new MySqlParameter("@id", result3)};
-                            success = Sql.RemoveUser(param3);
-                            stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
-                            // if admin commits delete himself
-                            if(id.ToString() == result3)
-                                goto case '6';
-                            break;
-                        case '4':
-                            returnS = Sql.GetAllBooks();
-                            stream.Write(Encoding.UTF8.GetBytes(returnS));
-                            break;
-                        case '5':
-                            returnS = Sql.GetUsers();
-                            stream.Write(Encoding.UTF8.GetBytes(returnS));
-                            break;
-                        case '6':
-                            stream.Close();
-                            client.Close();
-                            login = false;
-                            admin = false;
-                            running = false;
-                            break;
-                        default:
-                            break;
-                    }
-                }while(running);
             }
         }
     }
