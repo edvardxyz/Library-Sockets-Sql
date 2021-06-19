@@ -109,7 +109,7 @@ namespace server
                             success = Sql.BorrowBook(param);
                             stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
                             if(success){
-                                Console.WriteLine("User: " + id +" lend book: " + cmd.Substring(1) + " sucessfully");
+                                Console.WriteLine("User: " + id +" lend book ISBN: " + cmd.Substring(1) + " sucessfully");
                             }
                             break;
                         case '2':
@@ -119,7 +119,7 @@ namespace server
                             success = Sql.ReturnBook(param);
                             stream.Write(Encoding.UTF8.GetBytes(success.ToString()));
                             if(success){
-                                Console.WriteLine("User: " + id +" returned book: " + cmd.Substring(1) + " sucessfully");
+                                Console.WriteLine("User: " + id +" returned book ISBN: " + cmd.Substring(1) + " sucessfully");
                             }
                             break;
                         case '3':
@@ -279,8 +279,8 @@ namespace server
                         cmd.Parameters.AddRange(values);
                         cmd.Prepare();
 
-                        int rows = cmd.ExecuteNonQuery();
-                        Console.WriteLine($"Inserted {0} row(s)");
+                        cmd.ExecuteNonQuery();
+                        Console.WriteLine($"Inserted row(s)");
                     }
                 return true;
             }

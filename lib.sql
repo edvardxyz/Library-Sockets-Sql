@@ -23,7 +23,6 @@ CREATE TABLE books(
     FOREIGN KEY(fk_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-
 INSERT INTO users(name,password,admin)
 VALUES
 (
@@ -32,27 +31,27 @@ VALUES
     1
 ),
 (
-    'hans Jensen',
+    'Hans Jensen',
     '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
     0
 ),
 (
-    'dfsa Jensen',
+    'Dorte Jensen',
     '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
     0
 ),
 (
-    'Lotte haf',
+    'Lotte Bobsen',
     '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
     0
 ),
 (
-    'Has',
+    'Gertrud Petersen',
     '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
     0
 ),
 (
-    'Peder',
+    'Peder Sorensen',
     '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
     0
 );
@@ -61,8 +60,8 @@ INSERT INTO books(isbn, title, author, publisher, genre, published, pages)
 VALUES
 (
     123,
-    'The book',
-    'The author',
+    'Pride and Prejudice',
+    'Jane Austen',
     'The pubhliser',
     'The genre',
     1992,
@@ -70,8 +69,8 @@ VALUES
 ),
 (
     122,
-    'The book',
-    'The author',
+    '1984',
+    'George Orwell',
     'The pubhliser',
     'The genre',
     1992,
@@ -79,8 +78,8 @@ VALUES
 ),
 (
     125,
-    'The book',
-    'The author',
+    'Crime and Punishment',
+    'Fyodor Dostoyevsky',
     'The pubhliser',
     'The genre',
     1992,
@@ -88,8 +87,8 @@ VALUES
 ),
 (
     183,
-    'The book',
-    'The author',
+    'Hamlet',
+    'William Shakespeare',
     'The pubhliser',
     'The genre',
     1992,
@@ -97,8 +96,8 @@ VALUES
 ),
 (
     223,
-    'The book',
-    'The author',
+    'One Hundres Years of Solitude',
+    'Gabriel Garcia Marquez',
     'The pubhliser',
     'The genre',
     1992,
@@ -106,8 +105,8 @@ VALUES
 ),
 (
     1238,
-    'The book',
-    'The author',
+    'Anna Karenina',
+    'Leo Tolstoy',
     'The pubhliser',
     'The genre',
     1992,
@@ -115,8 +114,8 @@ VALUES
 ),
 (
     13,
-    'The book',
-    'The author',
+    'The Stranger',
+    'Albert Camus',
     'The pubhliser',
     'The genre',
     1992,
@@ -124,8 +123,8 @@ VALUES
 ),
 (
     23,
-    'The book',
-    'The author',
+    'The Brothers Karamzov',
+    'Fyodor Dostoyevsky',
     'The pubhliser',
     'The genre',
     1992,
@@ -133,8 +132,8 @@ VALUES
 ),
 (
     129,
-    'The book',
-    'The author',
+    'The Odyssey',
+    'Homer',
     'The pubhliser',
     'The genre',
     1992,
@@ -142,8 +141,8 @@ VALUES
 ),
 (
     12399,
-    'The book',
-    'The author',
+    'The Arabian Nights',
+    'Anonymous',
     'The pubhliser',
     'The genre',
     1992,
@@ -151,8 +150,8 @@ VALUES
 ),
 (
     243,
-    'The book',
-    'The author',
+    'War and Peace',
+    'Leo Tolstoy',
     'The pubhliser',
     'The genre',
     1992,

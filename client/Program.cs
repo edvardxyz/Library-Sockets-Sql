@@ -102,7 +102,7 @@ namespace client
                         Command("1", stream, false);
                         Command(Interface.GetInput("Indtast ISBN på bogen: "), stream, false);
                         Command(Interface.GetString("Indtast Title på bogen: "), stream, false);
-                        Command(Interface.GetString("Indtast Author  på bogen: "), stream, false);
+                        Command(Interface.GetString("Indtast Author på bogen: "), stream, false);
                         Command(Interface.GetString("Indtast Publisher på bogen: "), stream, false);
                         Command(Interface.GetString("Indtast Genre på bogen: "), stream, false);
                         Command(Interface.GetInput("Indtast Published på bogen: "), stream, false);
@@ -245,4 +245,3 @@ namespace client
         }
     }
 }
-
